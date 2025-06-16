@@ -17,7 +17,7 @@ const ProgressTracker = ({ workouts, settings }: ProgressTrackerProps) => {
   const progressPercentage = totalWorkouts > 0 ? (completedWorkouts.length / totalWorkouts) * 100 : 0;
 
   // Calculate weekly progress
-  const weeklyProgress = Array.from({ length: 9 }, (_, i) => {
+  const weeklyProgress = Array.from({ length: settings.programWeeks }, (_, i) => {
     const week = i + 1;
     const weekWorkouts = workouts.filter(w => w.week === week);
     const weekCompleted = weekWorkouts.filter(w => w.completed).length;
@@ -47,13 +47,13 @@ const ProgressTracker = ({ workouts, settings }: ProgressTrackerProps) => {
 
     // Simple text-based PDF content
     const pdfContent = `
-COUCH TO ${settings.goalDistance.toUpperCase()} PROGRESS REPORT
+COUCH TO ${settings.goalDistance}K PROGRESS REPORT
 Generated on: ${format(new Date(), "PPP")}
 
 PROGRAM OVERVIEW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Program Start Date: ${format(settings.startDate, "PPP")}
-Goal: ${settings.goalDistance}
+Goal: ${settings.goalDistance}K
 Overall Progress: ${reportData.progressPercentage}% (${reportData.completedWorkouts}/${reportData.totalWorkouts} workouts)
 
 WEEKLY BREAKDOWN
@@ -74,7 +74,7 @@ ${reportData.completedList.map(w =>
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `couch-to-${settings.goalDistance.toLowerCase()}-progress-${format(new Date(), 'yyyy-MM-dd')}.txt`;
+    a.download = `couch-to-${settings.goalDistance}k-progress-${format(new Date(), 'yyyy-MM-dd')}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -180,7 +180,7 @@ ${reportData.completedList.map(w =>
         </CardHeader>
         <CardContent>
           <p className="text-gray-600 mb-4">
-            Download a detailed report of your progress through the Couch to {settings.goalDistance} program.
+            Download a detailed report of your progress through the Couch to {settings.goalDistance}K program.
           </p>
           <Button onClick={generatePDF} className="w-full" size="lg">
             <Download className="w-4 h-4 mr-2" />
