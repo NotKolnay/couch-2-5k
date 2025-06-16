@@ -40,7 +40,7 @@ const WorkoutPlan = ({
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
   const [postponeDate, setPostponeDate] = useState<Date>();
 
-  const weeksData = Array.from({ length: 9 }, (_, i) => i + 1);
+  const weeksData = Array.from({ length: settings.programWeeks }, (_, i) => i + 1);
   const selectedWeekWorkouts = workouts.filter(w => w.week === selectedWeek);
 
   const handleCompleteWorkout = (workout: WorkoutDay, completed: boolean) => {
@@ -73,10 +73,10 @@ const WorkoutPlan = ({
       {/* Week Navigation */}
       <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
-          <CardTitle>Training Weeks</CardTitle>
+          <CardTitle>Training Weeks ({settings.programWeeks} weeks total)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-2">
             {weeksData.map(week => {
               const weekWorkouts = workouts.filter(w => w.week === week);
               const completedCount = weekWorkouts.filter(w => w.completed).length;
@@ -107,7 +107,9 @@ const WorkoutPlan = ({
 
       {/* Selected Week Workouts */}
       <div className="grid gap-4">
-        <h3 className="text-xl font-semibold">Week {selectedWeek} Workouts</h3>
+        <h3 className="text-xl font-semibold">
+          Week {selectedWeek} Workouts ({settings.trainingDaysPerWeek} days per week)
+        </h3>
         {selectedWeekWorkouts.map(workout => {
           const status = getWorkoutStatus(workout);
           

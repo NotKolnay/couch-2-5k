@@ -23,14 +23,6 @@ const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
   const [localSettings, setLocalSettings] = useState<ProgramSettings>(settings);
   const [startDate, setStartDate] = useState<Date>(settings.startDate);
 
-  const goalOptions = [
-    { value: "3K", label: "3K Run" },
-    { value: "5K", label: "5K Run" },
-    { value: "10K", label: "10K Run" },
-    { value: "15K", label: "15K Run" },
-    { value: "custom", label: "Custom Distance" }
-  ];
-
   const timeGoalOptions = [
     { value: "20min", label: "20 minutes" },
     { value: "25min", label: "25 minutes" },
@@ -71,45 +63,88 @@ const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Goal Distance */}
+          {/* Goal Distance in KM */}
           <div className="space-y-2">
-            <Label htmlFor="goal-distance">Goal Distance</Label>
+            <Label htmlFor="goal-distance">Goal Distance (Kilometers)</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="goal-distance"
+                type="number"
+                min="1"
+                max="42"
+                step="0.5"
+                value={localSettings.goalDistance}
+                onChange={(e) => setLocalSettings(prev => ({ 
+                  ...prev, 
+                  goalDistance: parseFloat(e.target.value) || 5 
+                }))}
+                className="w-24"
+              />
+              <span className="text-sm text-gray-600">km</span>
+            </div>
+            <p className="text-xs text-gray-500">Choose your target distance (e.g., 5K, 10K, etc.)</p>
+          </div>
+
+          {/* Program Duration */}
+          <div className="space-y-2">
+            <Label htmlFor="program-weeks">Program Duration (Weeks)</Label>
             <Select 
-              value={localSettings.goalDistance} 
-              onValueChange={(value) => setLocalSettings(prev => ({ ...prev, goalDistance: value }))}
+              value={localSettings.programWeeks.toString()} 
+              onValueChange={(value) => setLocalSettings(prev => ({ 
+                ...prev, 
+                programWeeks: parseInt(value) 
+              }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select your goal distance" />
+                <SelectValue placeholder="Select program length" />
               </SelectTrigger>
               <SelectContent>
-                {goalOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="6">6 weeks</SelectItem>
+                <SelectItem value="8">8 weeks</SelectItem>
+                <SelectItem value="9">9 weeks (classic)</SelectItem>
+                <SelectItem value="12">12 weeks</SelectItem>
+                <SelectItem value="16">16 weeks</SelectItem>
               </SelectContent>
             </Select>
-            {localSettings.goalDistance === "custom" && (
-              <Input 
-                placeholder="Enter custom distance (e.g., 7K, 2 miles)"
-                value={localSettings.goalDistance === "custom" ? "" : localSettings.goalDistance}
-                onChange={(e) => setLocalSettings(prev => ({ ...prev, goalDistance: e.target.value }))}
-              />
-            )}
+          </div>
+
+          {/* Training Days Per Week */}
+          <div className="space-y-2">
+            <Label htmlFor="training-days">Training Days Per Week</Label>
+            <Select 
+              value={localSettings.trainingDaysPerWeek.toString()} 
+              onValueChange={(value) => setLocalSettings(prev => ({ 
+                ...prev, 
+                trainingDaysPerWeek: parseInt(value) 
+              }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select training frequency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2">2 days per week</SelectItem>
+                <SelectItem value="3">3 days per week</SelectItem>
+                <SelectItem value="4">4 days per week</SelectItem>
+                <SelectItem value="5">5 days per week</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Time Goal */}
           <div className="space-y-2">
             <Label htmlFor="goal-time">Target Time (Optional)</Label>
             <Select 
-              value={localSettings.goalTime || ""} 
-              onValueChange={(value) => setLocalSettings(prev => ({ ...prev, goalTime: value }))}
+              value={localSettings.goalTime || "none"} 
+              onValueChange={(value) => setLocalSettings(prev => ({ 
+                ...prev, 
+                goalTime: value === "none" ? undefined : value 
+              }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select target completion time" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No specific time goal</SelectItem>
+                <SelectItem value="none">No specific time goal</SelectItem>
                 {timeGoalOptions.map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}

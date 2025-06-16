@@ -20,17 +20,21 @@ export interface WorkoutDay {
 
 export interface ProgramSettings {
   startDate: Date;
-  goalDistance: string;
+  goalDistance: number; // Changed to number for kilometers
   goalTime?: string;
   restDays: number[];
+  programWeeks: number; // New setting
+  trainingDaysPerWeek: number; // New setting
 }
 
 const Index = () => {
   const [workoutData, setWorkoutData] = useState<WorkoutDay[]>([]);
   const [settings, setSettings] = useState<ProgramSettings>({
     startDate: new Date(),
-    goalDistance: "5K",
+    goalDistance: 5, // Default 5K
     restDays: [0, 6], // Sunday and Saturday
+    programWeeks: 9, // Default 9 weeks
+    trainingDaysPerWeek: 3, // Default 3 days per week
   });
   const [currentWeek, setCurrentWeek] = useState(1);
 
@@ -38,37 +42,49 @@ const Index = () => {
   useEffect(() => {
     const initialWorkouts = generateWorkoutPlan();
     setWorkoutData(initialWorkouts);
-  }, []);
+  }, [settings.programWeeks, settings.trainingDaysPerWeek, settings.goalDistance]);
 
-  // Generate the 9-week Couch to 5K plan
+  // Generate dynamic workout plan based on settings
   const generateWorkoutPlan = (): WorkoutDay[] => {
     const workouts: WorkoutDay[] = [];
-    const plans = [
-      // Week 1-3: Walk/Run intervals
-      { week: 1, days: ["60s run, 90s walk (8x)", "60s run, 90s walk (8x)", "60s run, 90s walk (8x)"] },
-      { week: 2, days: ["90s run, 2min walk (6x)", "90s run, 2min walk (6x)", "90s run, 2min walk (6x)"] },
-      { week: 3, days: ["90s run, 90s walk, 3min run, 3min walk (2x)", "90s run, 90s walk, 3min run, 3min walk (2x)", "90s run, 90s walk, 3min run, 3min walk (2x)"] },
-      // Week 4-6: Longer runs
-      { week: 4, days: ["3min run, 90s walk, 5min run, 2.5min walk, 3min run", "5min run, 3min walk, 5min run", "3min run, 90s walk, 5min run, 2.5min walk, 3min run"] },
-      { week: 5, days: ["5min run, 3min walk, 5min run, 3min walk, 5min run", "8min run, 5min walk, 8min run", "20min run"] },
-      { week: 6, days: ["5min run, 3min walk, 8min run, 3min walk, 5min run", "10min run, 3min walk, 10min run", "25min run"] },
-      // Week 7-9: Continuous running
-      { week: 7, days: ["25min run", "25min run", "25min run"] },
-      { week: 8, days: ["28min run", "28min run", "28min run"] },
-      { week: 9, days: ["30min run", "30min run", "30min run"] },
-    ];
-
-    plans.forEach(({ week, days }) => {
-      days.forEach((description, dayIndex) => {
+    const { programWeeks, trainingDaysPerWeek, goalDistance } = settings;
+    
+    // Calculate progression intervals
+    const totalWorkouts = programWeeks * trainingDaysPerWeek;
+    const finalRunTime = Math.max(20, goalDistance * 4); // Rough estimate: 4 min per km minimum
+    
+    for (let week = 1; week <= programWeeks; week++) {
+      const weekProgress = (week - 1) / (programWeeks - 1); // 0 to 1
+      
+      for (let day = 1; day <= trainingDaysPerWeek; day++) {
+        let description = "";
+        
+        if (week <= Math.ceil(programWeeks * 0.3)) {
+          // Early weeks: Walk/Run intervals
+          const runTime = Math.ceil(60 + (weekProgress * 120)); // 60s to 180s
+          const walkTime = Math.ceil(120 - (weekProgress * 60)); // 120s to 60s
+          const intervals = Math.ceil(8 - (weekProgress * 3)); // 8 to 5 intervals
+          description = `${runTime}s run, ${walkTime}s walk (${intervals}x)`;
+        } else if (week <= Math.ceil(programWeeks * 0.6)) {
+          // Middle weeks: Longer intervals
+          const runTime = Math.ceil(3 + (weekProgress * 5)); // 3 to 8 minutes
+          const walkTime = Math.ceil(3 - (weekProgress * 1)); // 3 to 2 minutes
+          description = `${runTime}min run, ${walkTime}min walk (3x)`;
+        } else {
+          // Final weeks: Continuous running
+          const runTime = Math.ceil(15 + (weekProgress * (finalRunTime - 15)));
+          description = `${runTime}min continuous run`;
+        }
+        
         workouts.push({
           week,
-          day: dayIndex + 1,
-          title: `Week ${week}, Day ${dayIndex + 1}`,
+          day,
+          title: `Week ${week}, Day ${day}`,
           description,
           completed: false,
         });
-      });
-    });
+      }
+    }
 
     return workouts;
   };
@@ -104,7 +120,7 @@ const Index = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent mb-2">
-            Couch to {settings.goalDistance}
+            Couch to {settings.goalDistance}K
           </h1>
           <p className="text-lg text-gray-600">Your journey to running starts here</p>
         </div>
@@ -132,7 +148,7 @@ const Index = () => {
                 <div className="text-sm text-gray-600">Overall Progress</div>
               </div>
               <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{settings.goalDistance}</div>
+                <div className="text-2xl font-bold text-orange-600">{settings.goalDistance}K</div>
                 <div className="text-sm text-gray-600">Goal Distance</div>
               </div>
             </div>
