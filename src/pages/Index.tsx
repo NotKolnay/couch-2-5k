@@ -3,10 +3,12 @@ import { useState, useEffect } from "react";
 import WorkoutPlan from "@/components/WorkoutPlan";
 import ProgressTracker from "@/components/ProgressTracker";
 import SettingsPanel from "@/components/SettingsPanel";
+import CalendarView from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Settings, Download, Play } from "lucide-react";
+import { Calendar, Settings, Download, Play, CalendarDays } from "lucide-react";
+import { addDays, format } from "date-fns";
 
 export interface WorkoutDay {
   week: number;
@@ -14,66 +16,103 @@ export interface WorkoutDay {
   title: string;
   description: string;
   completed: boolean;
+  skipped: boolean;
   scheduledDate?: Date;
   completedDate?: Date;
 }
 
 export interface ProgramSettings {
   startDate: Date;
-  goalDistance: number; // Changed to number for kilometers
+  goalDistance: number;
+  startingDistance: number;
   goalTime?: string;
   restDays: number[];
-  programWeeks: number; // New setting
-  trainingDaysPerWeek: number; // New setting
+  programWeeks: number;
+  trainingDaysPerWeek: number;
+  walkingSpeed: number; // km/hr
+  runningSpeed: number; // km/hr
 }
 
 const Index = () => {
   const [workoutData, setWorkoutData] = useState<WorkoutDay[]>([]);
   const [settings, setSettings] = useState<ProgramSettings>({
     startDate: new Date(),
-    goalDistance: 5, // Default 5K
-    restDays: [0, 6], // Sunday and Saturday
-    programWeeks: 9, // Default 9 weeks
-    trainingDaysPerWeek: 3, // Default 3 days per week
+    goalDistance: 5,
+    startingDistance: 0,
+    restDays: [0, 6],
+    programWeeks: 9,
+    trainingDaysPerWeek: 3,
+    walkingSpeed: 5,
+    runningSpeed: 9,
   });
   const [currentWeek, setCurrentWeek] = useState(1);
 
-  // Initialize workout plan
+  // Load data from localStorage on component mount
   useEffect(() => {
-    const initialWorkouts = generateWorkoutPlan();
-    setWorkoutData(initialWorkouts);
-  }, [settings.programWeeks, settings.trainingDaysPerWeek, settings.goalDistance]);
+    const savedSettings = localStorage.getItem('couch-to-k-settings');
+    const savedWorkouts = localStorage.getItem('couch-to-k-workouts');
+    
+    if (savedSettings) {
+      const parsedSettings = JSON.parse(savedSettings);
+      // Convert date string back to Date object
+      parsedSettings.startDate = new Date(parsedSettings.startDate);
+      setSettings(parsedSettings);
+    }
+    
+    if (savedWorkouts) {
+      const parsedWorkouts = JSON.parse(savedWorkouts);
+      // Convert date strings back to Date objects
+      const workoutsWithDates = parsedWorkouts.map((workout: any) => ({
+        ...workout,
+        scheduledDate: workout.scheduledDate ? new Date(workout.scheduledDate) : undefined,
+        completedDate: workout.completedDate ? new Date(workout.completedDate) : undefined,
+      }));
+      setWorkoutData(workoutsWithDates);
+    }
+  }, []);
+
+  // Save to localStorage whenever settings or workouts change
+  useEffect(() => {
+    localStorage.setItem('couch-to-k-settings', JSON.stringify(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    localStorage.setItem('couch-to-k-workouts', JSON.stringify(workoutData));
+  }, [workoutData]);
 
   // Generate dynamic workout plan based on settings
   const generateWorkoutPlan = (): WorkoutDay[] => {
     const workouts: WorkoutDay[] = [];
-    const { programWeeks, trainingDaysPerWeek, goalDistance } = settings;
+    const { programWeeks, trainingDaysPerWeek, goalDistance, startingDistance, walkingSpeed, runningSpeed } = settings;
     
-    // Calculate progression intervals
     const totalWorkouts = programWeeks * trainingDaysPerWeek;
-    const finalRunTime = Math.max(20, goalDistance * 4); // Rough estimate: 4 min per km minimum
+    const distanceProgression = (goalDistance - startingDistance) / totalWorkouts;
     
     for (let week = 1; week <= programWeeks; week++) {
-      const weekProgress = (week - 1) / (programWeeks - 1); // 0 to 1
+      const weekProgress = (week - 1) / (programWeeks - 1);
       
       for (let day = 1; day <= trainingDaysPerWeek; day++) {
+        const currentDistance = startingDistance + (distanceProgression * ((week - 1) * trainingDaysPerWeek + day));
+        const targetTime = (currentDistance / runningSpeed) * 60; // minutes
+        const walkTime = (currentDistance / walkingSpeed) * 60; // minutes
+        
         let description = "";
         
         if (week <= Math.ceil(programWeeks * 0.3)) {
           // Early weeks: Walk/Run intervals
-          const runTime = Math.ceil(60 + (weekProgress * 120)); // 60s to 180s
-          const walkTime = Math.ceil(120 - (weekProgress * 60)); // 120s to 60s
-          const intervals = Math.ceil(8 - (weekProgress * 3)); // 8 to 5 intervals
-          description = `${runTime}s run, ${walkTime}s walk (${intervals}x)`;
+          const runSeconds = Math.ceil(60 + (weekProgress * 120));
+          const walkSeconds = Math.ceil(120 - (weekProgress * 60));
+          const intervals = Math.ceil(8 - (weekProgress * 3));
+          description = `${runSeconds}s run, ${walkSeconds}s walk (${intervals}x) - Target: ${currentDistance.toFixed(1)}km`;
         } else if (week <= Math.ceil(programWeeks * 0.6)) {
           // Middle weeks: Longer intervals
-          const runTime = Math.ceil(3 + (weekProgress * 5)); // 3 to 8 minutes
-          const walkTime = Math.ceil(3 - (weekProgress * 1)); // 3 to 2 minutes
-          description = `${runTime}min run, ${walkTime}min walk (3x)`;
+          const runMinutes = Math.ceil(3 + (weekProgress * 5));
+          const walkMinutes = Math.ceil(3 - (weekProgress * 1));
+          description = `${runMinutes}min run, ${walkMinutes}min walk (3x) - Target: ${currentDistance.toFixed(1)}km`;
         } else {
           // Final weeks: Continuous running
-          const runTime = Math.ceil(15 + (weekProgress * (finalRunTime - 15)));
-          description = `${runTime}min continuous run`;
+          const runMinutes = Math.ceil(targetTime);
+          description = `${runMinutes}min continuous run - Target: ${currentDistance.toFixed(1)}km`;
         }
         
         workouts.push({
@@ -82,12 +121,21 @@ const Index = () => {
           title: `Week ${week}, Day ${day}`,
           description,
           completed: false,
+          skipped: false,
         });
       }
     }
 
     return workouts;
   };
+
+  // Initialize workout plan when settings change
+  useEffect(() => {
+    if (workoutData.length === 0) {
+      const initialWorkouts = generateWorkoutPlan();
+      setWorkoutData(initialWorkouts);
+    }
+  }, [settings.programWeeks, settings.trainingDaysPerWeek, settings.goalDistance, settings.startingDistance]);
 
   const updateWorkout = (week: number, day: number, updates: Partial<WorkoutDay>) => {
     setWorkoutData(prev => 
@@ -99,15 +147,60 @@ const Index = () => {
     );
   };
 
-  const postponeWorkout = (week: number, day: number, newDate: Date) => {
-    updateWorkout(week, day, { scheduledDate: newDate });
-    // Recalculate subsequent workout dates
-    rescheduleProgram(week, day, newDate);
+  const scheduleAllWorkouts = () => {
+    const updatedWorkouts = [...workoutData];
+    let currentDate = new Date(settings.startDate);
+    
+    for (let i = 0; i < updatedWorkouts.length; i++) {
+      // Skip rest days
+      while (settings.restDays.includes(currentDate.getDay())) {
+        currentDate = addDays(currentDate, 1);
+      }
+      
+      updatedWorkouts[i].scheduledDate = new Date(currentDate);
+      currentDate = addDays(currentDate, 1);
+    }
+    
+    setWorkoutData(updatedWorkouts);
   };
 
-  const rescheduleProgram = (fromWeek: number, fromDay: number, newStartDate: Date) => {
-    // Logic to adjust all subsequent workouts based on postponement
-    console.log(`Rescheduling from Week ${fromWeek}, Day ${fromDay} starting ${newStartDate}`);
+  const skipWorkout = (week: number, day: number) => {
+    updateWorkout(week, day, { skipped: true });
+    // Reschedule remaining workouts
+    rescheduleFromWorkout(week, day);
+  };
+
+  const rescheduleFromWorkout = (fromWeek: number, fromDay: number) => {
+    const workoutIndex = workoutData.findIndex(w => w.week === fromWeek && w.day === fromDay);
+    if (workoutIndex === -1) return;
+    
+    const updatedWorkouts = [...workoutData];
+    let currentDate = new Date();
+    
+    // Find the next available date
+    while (settings.restDays.includes(currentDate.getDay())) {
+      currentDate = addDays(currentDate, 1);
+    }
+    
+    // Reschedule all workouts from this point forward
+    for (let i = workoutIndex + 1; i < updatedWorkouts.length; i++) {
+      if (!updatedWorkouts[i].completed && !updatedWorkouts[i].skipped) {
+        while (settings.restDays.includes(currentDate.getDay())) {
+          currentDate = addDays(currentDate, 1);
+        }
+        updatedWorkouts[i].scheduledDate = new Date(currentDate);
+        currentDate = addDays(currentDate, 1);
+      }
+    }
+    
+    setWorkoutData(updatedWorkouts);
+  };
+
+  const updateSettings = (newSettings: ProgramSettings) => {
+    setSettings(newSettings);
+    // Regenerate workouts if key settings changed
+    const newWorkouts = generateWorkoutPlan();
+    setWorkoutData(newWorkouts);
   };
 
   const completedWorkouts = workoutData.filter(w => w.completed).length;
@@ -165,10 +258,14 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="workouts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-white/70 backdrop-blur-sm">
+          <TabsList className="grid w-full grid-cols-4 bg-white/70 backdrop-blur-sm">
             <TabsTrigger value="workouts" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Workouts
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4" />
+              Calendar
             </TabsTrigger>
             <TabsTrigger value="progress" className="flex items-center gap-2">
               <Download className="w-4 h-4" />
@@ -185,7 +282,15 @@ const Index = () => {
               workouts={workoutData}
               currentWeek={currentWeek}
               onUpdateWorkout={updateWorkout}
-              onPostponeWorkout={postponeWorkout}
+              onSkipWorkout={skipWorkout}
+              onScheduleAll={scheduleAllWorkouts}
+              settings={settings}
+            />
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <CalendarView 
+              workouts={workoutData}
               settings={settings}
             />
           </TabsContent>
@@ -200,7 +305,7 @@ const Index = () => {
           <TabsContent value="settings">
             <SettingsPanel 
               settings={settings}
-              onUpdateSettings={setSettings}
+              onUpdateSettings={updateSettings}
             />
           </TabsContent>
         </Tabs>

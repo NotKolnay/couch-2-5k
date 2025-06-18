@@ -9,7 +9,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Calendar as CalendarIcon, Target, Clock } from "lucide-react";
+import { Settings, Calendar as CalendarIcon, Target } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ProgramSettings } from "@/pages/Index";
@@ -63,6 +63,28 @@ const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Starting Distance */}
+          <div className="space-y-2">
+            <Label htmlFor="starting-distance">Starting Distance (Kilometers)</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="starting-distance"
+                type="number"
+                min="0"
+                max="20"
+                step="0.5"
+                value={localSettings.startingDistance}
+                onChange={(e) => setLocalSettings(prev => ({ 
+                  ...prev, 
+                  startingDistance: parseFloat(e.target.value) || 0 
+                }))}
+                className="w-24"
+              />
+              <span className="text-sm text-gray-600">km</span>
+            </div>
+            <p className="text-xs text-gray-500">Your current fitness level (0 for complete beginners)</p>
+          </div>
+
           {/* Goal Distance in KM */}
           <div className="space-y-2">
             <Label htmlFor="goal-distance">Goal Distance (Kilometers)</Label>
@@ -156,6 +178,61 @@ const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
         </CardContent>
       </Card>
 
+      {/* Speed Settings */}
+      <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-purple-600" />
+            Speed Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Walking Speed */}
+          <div className="space-y-2">
+            <Label htmlFor="walking-speed">Average Walking Speed</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="walking-speed"
+                type="number"
+                min="3"
+                max="8"
+                step="0.1"
+                value={localSettings.walkingSpeed}
+                onChange={(e) => setLocalSettings(prev => ({ 
+                  ...prev, 
+                  walkingSpeed: parseFloat(e.target.value) || 5 
+                }))}
+                className="w-24"
+              />
+              <span className="text-sm text-gray-600">km/h</span>
+            </div>
+            <p className="text-xs text-gray-500">Default: 5 km/h</p>
+          </div>
+
+          {/* Running Speed */}
+          <div className="space-y-2">
+            <Label htmlFor="running-speed">Target Running Speed</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="running-speed"
+                type="number"
+                min="6"
+                max="20"
+                step="0.1"
+                value={localSettings.runningSpeed}
+                onChange={(e) => setLocalSettings(prev => ({ 
+                  ...prev, 
+                  runningSpeed: parseFloat(e.target.value) || 9 
+                }))}
+                className="w-24"
+              />
+              <span className="text-sm text-gray-600">km/h</span>
+            </div>
+            <p className="text-xs text-gray-500">Default: 9 km/h</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Schedule Settings */}
       <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
@@ -214,43 +291,6 @@ const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
                   />
                 </div>
               ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Advanced Settings */}
-      <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-purple-600" />
-            Advanced Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Email Reminders</Label>
-                <p className="text-sm text-gray-600">Get reminded about upcoming workouts</p>
-              </div>
-              <Switch />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Auto-reschedule</Label>
-                <p className="text-sm text-gray-600">Automatically adjust schedule when you miss workouts</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Weather Integration</Label>
-                <p className="text-sm text-gray-600">Get weather-based workout suggestions</p>
-              </div>
-              <Switch />
             </div>
           </div>
         </CardContent>
