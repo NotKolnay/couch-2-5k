@@ -4,15 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Settings, Calendar as CalendarIcon, Target } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { Calendar, Save } from "lucide-react";
 import { ProgramSettings } from "@/pages/Index";
+import { cn } from "@/lib/utils";
 
 interface SettingsPanelProps {
   settings: ProgramSettings;
@@ -21,225 +19,29 @@ interface SettingsPanelProps {
 
 const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
   const [localSettings, setLocalSettings] = useState<ProgramSettings>(settings);
-  const [startDate, setStartDate] = useState<Date>(settings.startDate);
 
-  const timeGoalOptions = [
-    { value: "20min", label: "20 minutes" },
-    { value: "25min", label: "25 minutes" },
-    { value: "30min", label: "30 minutes" },
-    { value: "35min", label: "35 minutes" },
-    { value: "40min", label: "40 minutes" }
-  ];
-
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-  const handleSaveSettings = () => {
-    const updatedSettings = {
-      ...localSettings,
-      startDate
-    };
-    onUpdateSettings(updatedSettings);
+  const handleSave = () => {
+    onUpdateSettings(localSettings);
   };
 
-  const handleRestDayToggle = (dayIndex: number, enabled: boolean) => {
-    const newRestDays = enabled 
-      ? [...localSettings.restDays, dayIndex].sort()
+  const handleRestDayToggle = (dayIndex: number, checked: boolean) => {
+    const newRestDays = checked 
+      ? [...localSettings.restDays, dayIndex]
       : localSettings.restDays.filter(day => day !== dayIndex);
     
     setLocalSettings(prev => ({
       ...prev,
-      restDays: newRestDays
+      restDays: newRestDays.sort()
     }));
   };
 
+  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
   return (
     <div className="space-y-6">
-      {/* Program Settings */}
       <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="w-5 h-5 text-blue-600" />
-            Program Goals
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Starting Distance */}
-          <div className="space-y-2">
-            <Label htmlFor="starting-distance">Starting Distance (Kilometers)</Label>
-            <div className="flex items-center space-x-2">
-              <Input
-                id="starting-distance"
-                type="number"
-                min="0"
-                max="20"
-                step="0.5"
-                value={localSettings.startingDistance}
-                onChange={(e) => setLocalSettings(prev => ({ 
-                  ...prev, 
-                  startingDistance: parseFloat(e.target.value) || 0 
-                }))}
-                className="w-24"
-              />
-              <span className="text-sm text-gray-600">km</span>
-            </div>
-            <p className="text-xs text-gray-500">Your current fitness level (0 for complete beginners)</p>
-          </div>
-
-          {/* Goal Distance in KM */}
-          <div className="space-y-2">
-            <Label htmlFor="goal-distance">Goal Distance (Kilometers)</Label>
-            <div className="flex items-center space-x-2">
-              <Input
-                id="goal-distance"
-                type="number"
-                min="1"
-                max="42"
-                step="0.5"
-                value={localSettings.goalDistance}
-                onChange={(e) => setLocalSettings(prev => ({ 
-                  ...prev, 
-                  goalDistance: parseFloat(e.target.value) || 5 
-                }))}
-                className="w-24"
-              />
-              <span className="text-sm text-gray-600">km</span>
-            </div>
-            <p className="text-xs text-gray-500">Choose your target distance (e.g., 5K, 10K, etc.)</p>
-          </div>
-
-          {/* Program Duration */}
-          <div className="space-y-2">
-            <Label htmlFor="program-weeks">Program Duration (Weeks)</Label>
-            <Select 
-              value={localSettings.programWeeks.toString()} 
-              onValueChange={(value) => setLocalSettings(prev => ({ 
-                ...prev, 
-                programWeeks: parseInt(value) 
-              }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select program length" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="6">6 weeks</SelectItem>
-                <SelectItem value="8">8 weeks</SelectItem>
-                <SelectItem value="9">9 weeks (classic)</SelectItem>
-                <SelectItem value="12">12 weeks</SelectItem>
-                <SelectItem value="16">16 weeks</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Training Days Per Week */}
-          <div className="space-y-2">
-            <Label htmlFor="training-days">Training Days Per Week</Label>
-            <Select 
-              value={localSettings.trainingDaysPerWeek.toString()} 
-              onValueChange={(value) => setLocalSettings(prev => ({ 
-                ...prev, 
-                trainingDaysPerWeek: parseInt(value) 
-              }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select training frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2">2 days per week</SelectItem>
-                <SelectItem value="3">3 days per week</SelectItem>
-                <SelectItem value="4">4 days per week</SelectItem>
-                <SelectItem value="5">5 days per week</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Time Goal */}
-          <div className="space-y-2">
-            <Label htmlFor="goal-time">Target Time (Optional)</Label>
-            <Select 
-              value={localSettings.goalTime || "none"} 
-              onValueChange={(value) => setLocalSettings(prev => ({ 
-                ...prev, 
-                goalTime: value === "none" ? undefined : value 
-              }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select target completion time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No specific time goal</SelectItem>
-                {timeGoalOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Speed Settings */}
-      <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-purple-600" />
-            Speed Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Walking Speed */}
-          <div className="space-y-2">
-            <Label htmlFor="walking-speed">Average Walking Speed</Label>
-            <div className="flex items-center space-x-2">
-              <Input
-                id="walking-speed"
-                type="number"
-                min="3"
-                max="8"
-                step="0.1"
-                value={localSettings.walkingSpeed}
-                onChange={(e) => setLocalSettings(prev => ({ 
-                  ...prev, 
-                  walkingSpeed: parseFloat(e.target.value) || 5 
-                }))}
-                className="w-24"
-              />
-              <span className="text-sm text-gray-600">km/h</span>
-            </div>
-            <p className="text-xs text-gray-500">Default: 5 km/h</p>
-          </div>
-
-          {/* Running Speed */}
-          <div className="space-y-2">
-            <Label htmlFor="running-speed">Target Running Speed</Label>
-            <div className="flex items-center space-x-2">
-              <Input
-                id="running-speed"
-                type="number"
-                min="6"
-                max="20"
-                step="0.1"
-                value={localSettings.runningSpeed}
-                onChange={(e) => setLocalSettings(prev => ({ 
-                  ...prev, 
-                  runningSpeed: parseFloat(e.target.value) || 9 
-                }))}
-                className="w-24"
-              />
-              <span className="text-sm text-gray-600">km/h</span>
-            </div>
-            <p className="text-xs text-gray-500">Default: 9 km/h</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Schedule Settings */}
-      <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-green-600" />
-            Schedule Settings
-          </CardTitle>
+          <CardTitle>Program Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Start Date */}
@@ -251,59 +53,141 @@ const SettingsPanel = ({ settings, onUpdateSettings }: SettingsPanelProps) => {
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
+                    !localSettings.startDate && "text-muted-foreground"
                   )}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, "PPP") : "Pick a date"}
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {localSettings.startDate ? format(localSettings.startDate, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   mode="single"
-                  selected={startDate}
-                  onSelect={(date) => date && setStartDate(date)}
+                  selected={localSettings.startDate}
+                  onSelect={(date) => 
+                    setLocalSettings(prev => ({ ...prev, startDate: date || new Date() }))
+                  }
                   initialFocus
-                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
           </div>
 
-          <Separator />
+          {/* Distance Goals */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Starting Distance (km)</Label>
+              <Input
+                type="number"
+                value={localSettings.startingDistance}
+                onChange={(e) => 
+                  setLocalSettings(prev => ({ ...prev, startingDistance: parseFloat(e.target.value) || 0 }))
+                }
+                min="0"
+                step="0.1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Goal Distance (km)</Label>
+              <Input
+                type="number"
+                value={localSettings.goalDistance}
+                onChange={(e) => 
+                  setLocalSettings(prev => ({ ...prev, goalDistance: parseFloat(e.target.value) || 5 }))
+                }
+                min="1"
+                step="0.1"
+              />
+            </div>
+          </div>
+
+          {/* Speed Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Walking Speed (km/hr)</Label>
+              <Input
+                type="number"
+                value={localSettings.walkingSpeed}
+                onChange={(e) => 
+                  setLocalSettings(prev => ({ ...prev, walkingSpeed: parseFloat(e.target.value) || 5 }))
+                }
+                min="1"
+                step="0.1"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Running Speed Goal (km/hr)</Label>
+              <Input
+                type="number"
+                value={localSettings.runningSpeed}
+                onChange={(e) => 
+                  setLocalSettings(prev => ({ ...prev, runningSpeed: parseFloat(e.target.value) || 9 }))
+                }
+                min="1"
+                step="0.1"
+              />
+            </div>
+          </div>
+
+          {/* Program Structure */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Program Duration (weeks)</Label>
+              <Input
+                type="number"
+                value={localSettings.programWeeks}
+                onChange={(e) => 
+                  setLocalSettings(prev => ({ ...prev, programWeeks: parseInt(e.target.value) || 9 }))
+                }
+                min="1"
+                max="52"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Training Days per Week</Label>
+              <Input
+                type="number"
+                value={localSettings.trainingDaysPerWeek}
+                onChange={(e) => 
+                  setLocalSettings(prev => ({ ...prev, trainingDaysPerWeek: parseInt(e.target.value) || 3 }))
+                }
+                min="1"
+                max="7"
+              />
+            </div>
+          </div>
 
           {/* Rest Days */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <Label>Rest Days</Label>
-            <p className="text-sm text-gray-600">
-              Select which days of the week you prefer to rest. The program will automatically schedule workouts around these days.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {dayNames.map((day, index) => (
-                <div key={day} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <Label htmlFor={`rest-day-${index}`} className="cursor-pointer">
-                    {day}
-                  </Label>
-                  <Switch
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {weekDays.map((day, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox
                     id={`rest-day-${index}`}
                     checked={localSettings.restDays.includes(index)}
-                    onCheckedChange={(checked) => handleRestDayToggle(index, checked)}
+                    onCheckedChange={(checked) => 
+                      handleRestDayToggle(index, checked as boolean)
+                    }
                   />
+                  <Label 
+                    htmlFor={`rest-day-${index}`}
+                    className="text-sm font-normal"
+                  >
+                    {day.slice(0, 3)}
+                  </Label>
                 </div>
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Save Button */}
-      <Card className="bg-gradient-to-r from-blue-500 to-green-500 text-white border-0 shadow-lg">
-        <CardContent className="p-6">
+          {/* Save Button */}
           <Button 
-            onClick={handleSaveSettings}
-            className="w-full bg-white text-blue-600 hover:bg-gray-100"
+            onClick={handleSave}
+            className="w-full"
             size="lg"
           >
+            <Save className="w-4 h-4 mr-2" />
             Save Settings
           </Button>
         </CardContent>

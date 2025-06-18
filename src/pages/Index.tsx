@@ -25,7 +25,6 @@ export interface ProgramSettings {
   startDate: Date;
   goalDistance: number;
   startingDistance: number;
-  goalTime?: string;
   restDays: number[];
   programWeeks: number;
   trainingDaysPerWeek: number;
@@ -46,6 +45,7 @@ const Index = () => {
     runningSpeed: 9,
   });
   const [currentWeek, setCurrentWeek] = useState(1);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -74,20 +74,28 @@ const Index = () => {
     if (savedCurrentWeek) {
       setCurrentWeek(parseInt(savedCurrentWeek));
     }
+
+    setIsInitialized(true);
   }, []);
 
   // Save to localStorage whenever settings, workouts, or current week change
   useEffect(() => {
-    localStorage.setItem('couch-to-k-settings', JSON.stringify(settings));
-  }, [settings]);
+    if (isInitialized) {
+      localStorage.setItem('couch-to-k-settings', JSON.stringify(settings));
+    }
+  }, [settings, isInitialized]);
 
   useEffect(() => {
-    localStorage.setItem('couch-to-k-workouts', JSON.stringify(workoutData));
-  }, [workoutData]);
+    if (isInitialized) {
+      localStorage.setItem('couch-to-k-workouts', JSON.stringify(workoutData));
+    }
+  }, [workoutData, isInitialized]);
 
   useEffect(() => {
-    localStorage.setItem('couch-to-k-current-week', currentWeek.toString());
-  }, [currentWeek]);
+    if (isInitialized) {
+      localStorage.setItem('couch-to-k-current-week', currentWeek.toString());
+    }
+  }, [currentWeek, isInitialized]);
 
   // Generate dynamic workout plan based on settings
   const generateWorkoutPlan = (): WorkoutDay[] => {
@@ -138,13 +146,20 @@ const Index = () => {
     return workouts;
   };
 
-  // Initialize workout plan when settings change
+  // Initialize workout plan only when no saved workouts exist or key settings changed
   useEffect(() => {
-    if (workoutData.length === 0) {
+    if (isInitialized && workoutData.length === 0) {
       const initialWorkouts = generateWorkoutPlan();
       setWorkoutData(initialWorkouts);
     }
-  }, [settings.programWeeks, settings.trainingDaysPerWeek, settings.goalDistance, settings.startingDistance]);
+  }, [isInitialized]);
+
+  // Auto-schedule when start date changes
+  useEffect(() => {
+    if (isInitialized && workoutData.length > 0) {
+      scheduleAllWorkouts();
+    }
+  }, [settings.startDate, isInitialized]);
 
   const updateWorkout = (week: number, day: number, updates: Partial<WorkoutDay>) => {
     setWorkoutData(prev => 
@@ -161,42 +176,12 @@ const Index = () => {
     let currentDate = new Date(settings.startDate);
     
     for (let i = 0; i < updatedWorkouts.length; i++) {
-      // Skip rest days
-      while (settings.restDays.includes(currentDate.getDay())) {
-        currentDate = addDays(currentDate, 1);
-      }
-      
-      updatedWorkouts[i].scheduledDate = new Date(currentDate);
-      currentDate = addDays(currentDate, 1);
-    }
-    
-    setWorkoutData(updatedWorkouts);
-  };
-
-  const skipWorkout = (week: number, day: number) => {
-    updateWorkout(week, day, { skipped: true });
-    // Reschedule remaining workouts
-    rescheduleFromWorkout(week, day);
-  };
-
-  const rescheduleFromWorkout = (fromWeek: number, fromDay: number) => {
-    const workoutIndex = workoutData.findIndex(w => w.week === fromWeek && w.day === fromDay);
-    if (workoutIndex === -1) return;
-    
-    const updatedWorkouts = [...workoutData];
-    let currentDate = new Date();
-    
-    // Find the next available date
-    while (settings.restDays.includes(currentDate.getDay())) {
-      currentDate = addDays(currentDate, 1);
-    }
-    
-    // Reschedule all workouts from this point forward
-    for (let i = workoutIndex + 1; i < updatedWorkouts.length; i++) {
-      if (!updatedWorkouts[i].completed && !updatedWorkouts[i].skipped) {
+      if (!updatedWorkouts[i].completed) {
+        // Skip rest days
         while (settings.restDays.includes(currentDate.getDay())) {
           currentDate = addDays(currentDate, 1);
         }
+        
         updatedWorkouts[i].scheduledDate = new Date(currentDate);
         currentDate = addDays(currentDate, 1);
       }
@@ -205,11 +190,57 @@ const Index = () => {
     setWorkoutData(updatedWorkouts);
   };
 
+  const skipWorkout = (week: number, day: number) => {
+    updateWorkout(week, day, { skipped: true });
+    // Reschedule remaining workouts
+    setTimeout(() => {
+      rescheduleFromWorkout(week, day);
+    }, 100);
+  };
+
+  const rescheduleFromWorkout = (fromWeek: number, fromDay: number) => {
+    const workoutIndex = workoutData.findIndex(w => w.week === fromWeek && w.day === fromDay);
+    if (workoutIndex === -1) return;
+    
+    setWorkoutData(prev => {
+      const updatedWorkouts = [...prev];
+      let currentDate = new Date();
+      
+      // Find the next available date after today
+      currentDate = addDays(currentDate, 1);
+      while (settings.restDays.includes(currentDate.getDay())) {
+        currentDate = addDays(currentDate, 1);
+      }
+      
+      // Reschedule all workouts from this point forward
+      for (let i = workoutIndex + 1; i < updatedWorkouts.length; i++) {
+        if (!updatedWorkouts[i].completed && !updatedWorkouts[i].skipped) {
+          while (settings.restDays.includes(currentDate.getDay())) {
+            currentDate = addDays(currentDate, 1);
+          }
+          updatedWorkouts[i].scheduledDate = new Date(currentDate);
+          currentDate = addDays(currentDate, 1);
+        }
+      }
+      
+      return updatedWorkouts;
+    });
+  };
+
   const updateSettings = (newSettings: ProgramSettings) => {
+    const keySettingsChanged = 
+      newSettings.programWeeks !== settings.programWeeks ||
+      newSettings.trainingDaysPerWeek !== settings.trainingDaysPerWeek ||
+      newSettings.goalDistance !== settings.goalDistance ||
+      newSettings.startingDistance !== settings.startingDistance;
+    
     setSettings(newSettings);
-    // Regenerate workouts if key settings changed
-    const newWorkouts = generateWorkoutPlan();
-    setWorkoutData(newWorkouts);
+    
+    // Only regenerate workouts if key settings changed
+    if (keySettingsChanged) {
+      const newWorkouts = generateWorkoutPlan();
+      setWorkoutData(newWorkouts);
+    }
   };
 
   const completedWorkouts = workoutData.filter(w => w.completed).length;
