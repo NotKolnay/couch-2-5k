@@ -51,6 +51,7 @@ const Index = () => {
   useEffect(() => {
     const savedSettings = localStorage.getItem('couch-to-k-settings');
     const savedWorkouts = localStorage.getItem('couch-to-k-workouts');
+    const savedCurrentWeek = localStorage.getItem('couch-to-k-current-week');
     
     if (savedSettings) {
       const parsedSettings = JSON.parse(savedSettings);
@@ -69,9 +70,13 @@ const Index = () => {
       }));
       setWorkoutData(workoutsWithDates);
     }
+
+    if (savedCurrentWeek) {
+      setCurrentWeek(parseInt(savedCurrentWeek));
+    }
   }, []);
 
-  // Save to localStorage whenever settings or workouts change
+  // Save to localStorage whenever settings, workouts, or current week change
   useEffect(() => {
     localStorage.setItem('couch-to-k-settings', JSON.stringify(settings));
   }, [settings]);
@@ -79,6 +84,10 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem('couch-to-k-workouts', JSON.stringify(workoutData));
   }, [workoutData]);
+
+  useEffect(() => {
+    localStorage.setItem('couch-to-k-current-week', currentWeek.toString());
+  }, [currentWeek]);
 
   // Generate dynamic workout plan based on settings
   const generateWorkoutPlan = (): WorkoutDay[] => {
@@ -92,9 +101,9 @@ const Index = () => {
       const weekProgress = (week - 1) / (programWeeks - 1);
       
       for (let day = 1; day <= trainingDaysPerWeek; day++) {
-        const currentDistance = startingDistance + (distanceProgression * ((week - 1) * trainingDaysPerWeek + day));
+        const workoutIndex = ((week - 1) * trainingDaysPerWeek) + day - 1;
+        const currentDistance = startingDistance + (distanceProgression * (workoutIndex + 1));
         const targetTime = (currentDistance / runningSpeed) * 60; // minutes
-        const walkTime = (currentDistance / walkingSpeed) * 60; // minutes
         
         let description = "";
         
