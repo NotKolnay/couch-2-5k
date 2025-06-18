@@ -49,9 +49,9 @@ const Index = () => {
 
   // Load data from localStorage on component mount
   useEffect(() => {
-    const savedSettings = localStorage.getItem('couch-to-k-settings');
-    const savedWorkouts = localStorage.getItem('couch-to-k-workouts');
-    const savedCurrentWeek = localStorage.getItem('couch-to-k-current-week');
+    const savedSettings = localStorage.getItem('running-planner-settings');
+    const savedWorkouts = localStorage.getItem('running-planner-workouts');
+    const savedCurrentWeek = localStorage.getItem('running-planner-current-week');
     
     if (savedSettings) {
       const parsedSettings = JSON.parse(savedSettings);
@@ -81,19 +81,19 @@ const Index = () => {
   // Save to localStorage whenever settings, workouts, or current week change
   useEffect(() => {
     if (isInitialized) {
-      localStorage.setItem('couch-to-k-settings', JSON.stringify(settings));
+      localStorage.setItem('running-planner-settings', JSON.stringify(settings));
     }
   }, [settings, isInitialized]);
 
   useEffect(() => {
     if (isInitialized) {
-      localStorage.setItem('couch-to-k-workouts', JSON.stringify(workoutData));
+      localStorage.setItem('running-planner-workouts', JSON.stringify(workoutData));
     }
   }, [workoutData, isInitialized]);
 
   useEffect(() => {
     if (isInitialized) {
-      localStorage.setItem('couch-to-k-current-week', currentWeek.toString());
+      localStorage.setItem('running-planner-current-week', currentWeek.toString());
     }
   }, [currentWeek, isInitialized]);
 
@@ -111,23 +111,30 @@ const Index = () => {
       for (let day = 1; day <= trainingDaysPerWeek; day++) {
         const workoutIndex = ((week - 1) * trainingDaysPerWeek) + day - 1;
         const currentDistance = startingDistance + (distanceProgression * (workoutIndex + 1));
-        const targetTime = (currentDistance / runningSpeed) * 60; // minutes
         
         let description = "";
         
-        if (week <= Math.ceil(programWeeks * 0.3)) {
-          // Early weeks: Walk/Run intervals
-          const runSeconds = Math.ceil(60 + (weekProgress * 120));
-          const walkSeconds = Math.ceil(120 - (weekProgress * 60));
-          const intervals = Math.ceil(8 - (weekProgress * 3));
-          description = `${runSeconds}s run, ${walkSeconds}s walk (${intervals}x) - Target: ${currentDistance.toFixed(1)}km`;
-        } else if (week <= Math.ceil(programWeeks * 0.6)) {
+        if (week <= Math.ceil(programWeeks * 0.4)) {
+          // Early weeks: Walk/Run intervals with increasing run time
+          const runSeconds = Math.ceil(60 + (weekProgress * 240)); // 60s to 300s
+          const walkSeconds = Math.ceil(120 - (weekProgress * 60)); // 120s to 60s
+          const intervals = Math.ceil(8 - (weekProgress * 3)); // 8 to 5 intervals
+          const estimatedTime = ((runSeconds + walkSeconds) * intervals) / 60; // in minutes
+          const adjustedDistance = Math.max(currentDistance, (estimatedTime / 60) * ((walkingSpeed + runningSpeed) / 2));
+          description = `${runSeconds}s run, ${walkSeconds}s walk (${intervals}x) - Target: ${adjustedDistance.toFixed(1)}km`;
+        } else if (week <= Math.ceil(programWeeks * 0.7)) {
           // Middle weeks: Longer intervals
-          const runMinutes = Math.ceil(3 + (weekProgress * 5));
-          const walkMinutes = Math.ceil(3 - (weekProgress * 1));
-          description = `${runMinutes}min run, ${walkMinutes}min walk (3x) - Target: ${currentDistance.toFixed(1)}km`;
+          const runMinutes = Math.ceil(3 + (weekProgress * 8)); // 3 to 11 minutes
+          const walkMinutes = Math.ceil(3 - (weekProgress * 2)); // 3 to 1 minutes
+          const intervals = 3;
+          const totalRunTime = runMinutes * intervals;
+          const totalWalkTime = walkMinutes * intervals;
+          const estimatedDistance = (totalRunTime / 60) * runningSpeed + (totalWalkTime / 60) * walkingSpeed;
+          const adjustedDistance = Math.max(currentDistance, estimatedDistance);
+          description = `${runMinutes}min run, ${walkMinutes}min walk (${intervals}x) - Target: ${adjustedDistance.toFixed(1)}km`;
         } else {
-          // Final weeks: Continuous running
+          // Final weeks: Continuous running with time to reach goal
+          const targetTime = (currentDistance / runningSpeed) * 60; // minutes needed to reach distance at running speed
           const runMinutes = Math.ceil(targetTime);
           description = `${runMinutes}min continuous run - Target: ${currentDistance.toFixed(1)}km`;
         }
@@ -176,7 +183,7 @@ const Index = () => {
     let currentDate = new Date(settings.startDate);
     
     for (let i = 0; i < updatedWorkouts.length; i++) {
-      if (!updatedWorkouts[i].completed) {
+      if (!updatedWorkouts[i].completed && !updatedWorkouts[i].skipped) {
         // Skip rest days
         while (settings.restDays.includes(currentDate.getDay())) {
           currentDate = addDays(currentDate, 1);
@@ -191,8 +198,10 @@ const Index = () => {
   };
 
   const skipWorkout = (week: number, day: number) => {
-    updateWorkout(week, day, { skipped: true });
-    // Reschedule remaining workouts
+    // Mark the workout as skipped and remove its scheduled date
+    updateWorkout(week, day, { skipped: true, scheduledDate: undefined });
+    
+    // Reschedule all remaining workouts
     setTimeout(() => {
       rescheduleFromWorkout(week, day);
     }, 100);
@@ -204,15 +213,19 @@ const Index = () => {
     
     setWorkoutData(prev => {
       const updatedWorkouts = [...prev];
-      let currentDate = new Date();
       
-      // Find the next available date after today
-      currentDate = addDays(currentDate, 1);
-      while (settings.restDays.includes(currentDate.getDay())) {
-        currentDate = addDays(currentDate, 1);
+      // Find the last scheduled date before the skipped workout
+      let currentDate = new Date();
+      for (let i = 0; i < workoutIndex; i++) {
+        if (updatedWorkouts[i].scheduledDate && !updatedWorkouts[i].skipped) {
+          currentDate = new Date(updatedWorkouts[i].scheduledDate);
+        }
       }
       
-      // Reschedule all workouts from this point forward
+      // Start from the day after the last scheduled workout
+      currentDate = addDays(currentDate, 1);
+      
+      // Reschedule all workouts from the skipped one onward
       for (let i = workoutIndex + 1; i < updatedWorkouts.length; i++) {
         if (!updatedWorkouts[i].completed && !updatedWorkouts[i].skipped) {
           while (settings.restDays.includes(currentDate.getDay())) {
@@ -232,7 +245,9 @@ const Index = () => {
       newSettings.programWeeks !== settings.programWeeks ||
       newSettings.trainingDaysPerWeek !== settings.trainingDaysPerWeek ||
       newSettings.goalDistance !== settings.goalDistance ||
-      newSettings.startingDistance !== settings.startingDistance;
+      newSettings.startingDistance !== settings.startingDistance ||
+      newSettings.walkingSpeed !== settings.walkingSpeed ||
+      newSettings.runningSpeed !== settings.runningSpeed;
     
     setSettings(newSettings);
     
@@ -253,9 +268,9 @@ const Index = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent mb-2">
-            Couch to {settings.goalDistance}K
+            Running Planner
           </h1>
-          <p className="text-lg text-gray-600">Your journey to running starts here</p>
+          <p className="text-lg text-gray-600">Your personalized running journey starts here</p>
         </div>
 
         {/* Progress Overview */}
