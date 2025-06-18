@@ -103,40 +103,59 @@ const Index = () => {
     const { programWeeks, trainingDaysPerWeek, goalDistance, startingDistance, walkingSpeed, runningSpeed } = settings;
     
     const totalWorkouts = programWeeks * trainingDaysPerWeek;
-    const distanceProgression = (goalDistance - startingDistance) / totalWorkouts;
     
     for (let week = 1; week <= programWeeks; week++) {
-      const weekProgress = (week - 1) / (programWeeks - 1);
-      
       for (let day = 1; day <= trainingDaysPerWeek; day++) {
         const workoutIndex = ((week - 1) * trainingDaysPerWeek) + day - 1;
-        const currentDistance = startingDistance + (distanceProgression * (workoutIndex + 1));
+        const progressRatio = workoutIndex / (totalWorkouts - 1);
         
         let description = "";
+        let calculatedDistance = 0;
         
         if (week <= Math.ceil(programWeeks * 0.4)) {
           // Early weeks: Walk/Run intervals with increasing run time
-          const runSeconds = Math.ceil(60 + (weekProgress * 240)); // 60s to 300s
-          const walkSeconds = Math.ceil(120 - (weekProgress * 60)); // 120s to 60s
-          const intervals = Math.ceil(8 - (weekProgress * 3)); // 8 to 5 intervals
-          const estimatedTime = ((runSeconds + walkSeconds) * intervals) / 60; // in minutes
-          const adjustedDistance = Math.max(currentDistance, (estimatedTime / 60) * ((walkingSpeed + runningSpeed) / 2));
-          description = `${runSeconds}s run, ${walkSeconds}s walk (${intervals}x) - Target: ${adjustedDistance.toFixed(1)}km`;
+          const baseRunTime = 60; // Start with 60 seconds
+          const maxRunTime = 300; // Up to 5 minutes
+          const runSeconds = Math.round(baseRunTime + (progressRatio * (maxRunTime - baseRunTime) * 0.5));
+          
+          const baseWalkTime = 120; // Start with 2 minutes
+          const minWalkTime = 60; // Down to 1 minute
+          const walkSeconds = Math.round(baseWalkTime - (progressRatio * (baseWalkTime - minWalkTime) * 0.5));
+          
+          const intervals = Math.max(3, 8 - Math.floor(progressRatio * 5)); // 8 down to 3 intervals
+          
+          // Calculate distance based on time and speeds
+          const totalRunTime = (runSeconds * intervals) / 3600; // Convert to hours
+          const totalWalkTime = (walkSeconds * intervals) / 3600; // Convert to hours
+          calculatedDistance = (totalRunTime * runningSpeed) + (totalWalkTime * walkingSpeed);
+          
+          description = `${runSeconds}s run, ${walkSeconds}s walk (${intervals}x) - Target: ${calculatedDistance.toFixed(1)}km`;
         } else if (week <= Math.ceil(programWeeks * 0.7)) {
           // Middle weeks: Longer intervals
-          const runMinutes = Math.ceil(3 + (weekProgress * 8)); // 3 to 11 minutes
-          const walkMinutes = Math.ceil(3 - (weekProgress * 2)); // 3 to 1 minutes
+          const baseRunTime = 3; // 3 minutes
+          const maxRunTime = 12; // Up to 12 minutes
+          const runMinutes = Math.round(baseRunTime + (progressRatio * (maxRunTime - baseRunTime) * 0.7));
+          
+          const baseWalkTime = 3; // 3 minutes
+          const minWalkTime = 1; // Down to 1 minute
+          const walkMinutes = Math.max(1, Math.round(baseWalkTime - (progressRatio * (baseWalkTime - minWalkTime) * 0.7)));
+          
           const intervals = 3;
-          const totalRunTime = runMinutes * intervals;
-          const totalWalkTime = walkMinutes * intervals;
-          const estimatedDistance = (totalRunTime / 60) * runningSpeed + (totalWalkTime / 60) * walkingSpeed;
-          const adjustedDistance = Math.max(currentDistance, estimatedDistance);
-          description = `${runMinutes}min run, ${walkMinutes}min walk (${intervals}x) - Target: ${adjustedDistance.toFixed(1)}km`;
+          
+          // Calculate distance based on time and speeds
+          const totalRunTime = (runMinutes * intervals) / 60; // Convert to hours
+          const totalWalkTime = (walkMinutes * intervals) / 60; // Convert to hours
+          calculatedDistance = (totalRunTime * runningSpeed) + (totalWalkTime * walkingSpeed);
+          
+          description = `${runMinutes}min run, ${walkMinutes}min walk (${intervals}x) - Target: ${calculatedDistance.toFixed(1)}km`;
         } else {
-          // Final weeks: Continuous running with time to reach goal
-          const targetTime = (currentDistance / runningSpeed) * 60; // minutes needed to reach distance at running speed
-          const runMinutes = Math.ceil(targetTime);
-          description = `${runMinutes}min continuous run - Target: ${currentDistance.toFixed(1)}km`;
+          // Final weeks: Continuous running building to goal
+          const targetDistance = startingDistance + (progressRatio * (goalDistance - startingDistance));
+          const runTimeHours = targetDistance / runningSpeed;
+          const runMinutes = Math.round(runTimeHours * 60);
+          
+          calculatedDistance = targetDistance;
+          description = `${runMinutes}min continuous run - Target: ${calculatedDistance.toFixed(1)}km`;
         }
         
         workouts.push({
@@ -161,7 +180,7 @@ const Index = () => {
     }
   }, [isInitialized]);
 
-  // Auto-schedule when start date changes
+  // Auto-schedule when start date changes or settings change
   useEffect(() => {
     if (isInitialized && workoutData.length > 0) {
       scheduleAllWorkouts();
@@ -198,40 +217,48 @@ const Index = () => {
   };
 
   const skipWorkout = (week: number, day: number) => {
-    // Mark the workout as skipped and remove its scheduled date
-    updateWorkout(week, day, { skipped: true, scheduledDate: undefined });
-    
-    // Reschedule all remaining workouts
-    setTimeout(() => {
-      rescheduleFromWorkout(week, day);
-    }, 100);
-  };
-
-  const rescheduleFromWorkout = (fromWeek: number, fromDay: number) => {
-    const workoutIndex = workoutData.findIndex(w => w.week === fromWeek && w.day === fromDay);
-    if (workoutIndex === -1) return;
-    
     setWorkoutData(prev => {
       const updatedWorkouts = [...prev];
+      const skippedWorkoutIndex = updatedWorkouts.findIndex(w => w.week === week && w.day === day);
+      
+      if (skippedWorkoutIndex === -1) return prev;
+      
+      // Mark the workout as skipped
+      updatedWorkouts[skippedWorkoutIndex].skipped = true;
+      updatedWorkouts[skippedWorkoutIndex].scheduledDate = undefined;
+      
+      // Find all non-completed, non-skipped workouts after the skipped one
+      const remainingWorkouts = updatedWorkouts.slice(skippedWorkoutIndex + 1)
+        .filter(w => !w.completed && !w.skipped);
+      
+      if (remainingWorkouts.length === 0) return updatedWorkouts;
+      
+      // Start scheduling from the next available date after the skipped workout
+      let currentDate = new Date();
       
       // Find the last scheduled date before the skipped workout
-      let currentDate = new Date();
-      for (let i = 0; i < workoutIndex; i++) {
+      for (let i = 0; i < skippedWorkoutIndex; i++) {
         if (updatedWorkouts[i].scheduledDate && !updatedWorkouts[i].skipped) {
           currentDate = new Date(updatedWorkouts[i].scheduledDate);
         }
       }
       
-      // Start from the day after the last scheduled workout
+      // Move to next day
       currentDate = addDays(currentDate, 1);
       
-      // Reschedule all workouts from the skipped one onward
-      for (let i = workoutIndex + 1; i < updatedWorkouts.length; i++) {
-        if (!updatedWorkouts[i].completed && !updatedWorkouts[i].skipped) {
-          while (settings.restDays.includes(currentDate.getDay())) {
-            currentDate = addDays(currentDate, 1);
-          }
-          updatedWorkouts[i].scheduledDate = new Date(currentDate);
+      // Reschedule all remaining workouts
+      for (const workout of remainingWorkouts) {
+        // Skip rest days
+        while (settings.restDays.includes(currentDate.getDay())) {
+          currentDate = addDays(currentDate, 1);
+        }
+        
+        const workoutIndex = updatedWorkouts.findIndex(w => 
+          w.week === workout.week && w.day === workout.day
+        );
+        
+        if (workoutIndex !== -1) {
+          updatedWorkouts[workoutIndex].scheduledDate = new Date(currentDate);
           currentDate = addDays(currentDate, 1);
         }
       }
