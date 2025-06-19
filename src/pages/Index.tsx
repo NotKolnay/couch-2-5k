@@ -1,14 +1,16 @@
-
 import { useState, useEffect } from "react";
 import WorkoutPlan from "@/components/WorkoutPlan";
 import ProgressTracker from "@/components/ProgressTracker";
 import SettingsPanel from "@/components/SettingsPanel";
 import CalendarView from "@/components/CalendarView";
+import SocialDashboard from "@/components/social/SocialDashboard";
+import SocialSetup from "@/components/social/SocialSetup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Settings, Download, Play, CalendarDays } from "lucide-react";
+import { Calendar, Settings, Download, Play, CalendarDays, Users } from "lucide-react";
 import { addDays, format } from "date-fns";
+import { useSocial } from "@/contexts/SocialContext";
 
 export interface WorkoutDay {
   week: number;
@@ -46,6 +48,7 @@ const Index = () => {
   });
   const [currentWeek, setCurrentWeek] = useState(1);
   const [isInitialized, setIsInitialized] = useState(false);
+  const { currentUser } = useSocial();
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -270,6 +273,11 @@ const Index = () => {
   const totalWorkouts = workoutData.length;
   const progressPercentage = totalWorkouts > 0 ? (completedWorkouts / totalWorkouts) * 100 : 0;
 
+  // Show social setup if no social user exists
+  if (!currentUser) {
+    return <SocialSetup />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
@@ -321,7 +329,7 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="workouts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white/70 backdrop-blur-sm">
+          <TabsList className="grid w-full grid-cols-5 bg-white/70 backdrop-blur-sm">
             <TabsTrigger value="workouts" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Workouts
@@ -333,6 +341,10 @@ const Index = () => {
             <TabsTrigger value="progress" className="flex items-center gap-2">
               <Download className="w-4 h-4" />
               Progress
+            </TabsTrigger>
+            <TabsTrigger value="social" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Social
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -363,6 +375,10 @@ const Index = () => {
               workouts={workoutData}
               settings={settings}
             />
+          </TabsContent>
+
+          <TabsContent value="social">
+            <SocialDashboard />
           </TabsContent>
 
           <TabsContent value="settings">

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, ChevronRight, Calendar as CalendarIcon, SkipForward, CalendarCheck } from "lucide-react";
 import { format } from "date-fns";
 import { WorkoutDay, ProgramSettings } from "@/pages/Index";
+import { useSocial } from "@/contexts/SocialContext";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,7 @@ const WorkoutPlan = ({
 }: WorkoutPlanProps) => {
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
   const [postponeDate, setPostponeDate] = useState<Date>();
+  const social = useSocial();
 
   const weeksData = Array.from({ length: settings.programWeeks }, (_, i) => i + 1);
   const selectedWeekWorkouts = workouts.filter(w => w.week === selectedWeek);
@@ -50,6 +51,14 @@ const WorkoutPlan = ({
       completed,
       completedDate: completed ? new Date() : undefined
     });
+    
+    // Update social progress when workout is completed
+    if (completed) {
+      social.updateUserProgress({
+        distance: parseFloat(workout.description.match(/Target: ([\d.]+)km/)?.[1] || '0'),
+        workout: workout.title
+      });
+    }
   };
 
   const handlePostpone = (workout: WorkoutDay, date: Date) => {
