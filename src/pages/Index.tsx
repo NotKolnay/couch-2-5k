@@ -107,7 +107,7 @@ const Index = () => {
     for (let week = 1; week <= programWeeks; week++) {
       for (let day = 1; day <= trainingDaysPerWeek; day++) {
         const workoutIndex = ((week - 1) * trainingDaysPerWeek) + day - 1;
-        const progressRatio = workoutIndex / (totalWorkouts - 1);
+        const progressRatio = workoutIndex / Math.max(totalWorkouts - 1, 1);
         
         let description = "";
         let calculatedDistance = 0;
@@ -129,6 +129,10 @@ const Index = () => {
           const totalWalkTime = (walkSeconds * intervals) / 3600; // Convert to hours
           calculatedDistance = (totalRunTime * runningSpeed) + (totalWalkTime * walkingSpeed);
           
+          // Scale distance to fit progression from starting to goal distance
+          const targetForThisWorkout = startingDistance + (progressRatio * (goalDistance - startingDistance));
+          calculatedDistance = Math.max(targetForThisWorkout, calculatedDistance);
+          
           description = `${runSeconds}s run, ${walkSeconds}s walk (${intervals}x) - Target: ${calculatedDistance.toFixed(1)}km`;
         } else if (week <= Math.ceil(programWeeks * 0.7)) {
           // Middle weeks: Longer intervals
@@ -146,6 +150,10 @@ const Index = () => {
           const totalRunTime = (runMinutes * intervals) / 60; // Convert to hours
           const totalWalkTime = (walkMinutes * intervals) / 60; // Convert to hours
           calculatedDistance = (totalRunTime * runningSpeed) + (totalWalkTime * walkingSpeed);
+          
+          // Scale distance to fit progression
+          const targetForThisWorkout = startingDistance + (progressRatio * (goalDistance - startingDistance));
+          calculatedDistance = Math.max(targetForThisWorkout, calculatedDistance);
           
           description = `${runMinutes}min run, ${walkMinutes}min walk (${intervals}x) - Target: ${calculatedDistance.toFixed(1)}km`;
         } else {
@@ -172,15 +180,16 @@ const Index = () => {
     return workouts;
   };
 
-  // Initialize workout plan only when no saved workouts exist or key settings changed
+  // Initialize workout plan when settings change or no workouts exist
   useEffect(() => {
-    if (isInitialized && workoutData.length === 0) {
-      const initialWorkouts = generateWorkoutPlan();
-      setWorkoutData(initialWorkouts);
+    if (isInitialized) {
+      // Always regenerate workouts when key settings change
+      const newWorkouts = generateWorkoutPlan();
+      setWorkoutData(newWorkouts);
     }
-  }, [isInitialized]);
+  }, [isInitialized, settings.programWeeks, settings.trainingDaysPerWeek, settings.goalDistance, settings.startingDistance, settings.walkingSpeed, settings.runningSpeed]);
 
-  // Auto-schedule when start date changes or settings change
+  // Auto-schedule when start date changes
   useEffect(() => {
     if (isInitialized && workoutData.length > 0) {
       scheduleAllWorkouts();
@@ -223,66 +232,38 @@ const Index = () => {
       
       if (skippedWorkoutIndex === -1) return prev;
       
-      // Mark the workout as skipped
-      updatedWorkouts[skippedWorkoutIndex].skipped = true;
-      updatedWorkouts[skippedWorkoutIndex].scheduledDate = undefined;
+      // Get the skipped workout
+      const skippedWorkout = { ...updatedWorkouts[skippedWorkoutIndex] };
       
-      // Find all non-completed, non-skipped workouts after the skipped one
-      const remainingWorkouts = updatedWorkouts.slice(skippedWorkoutIndex + 1)
-        .filter(w => !w.completed && !w.skipped);
+      // Remove the skipped workout from its current position
+      updatedWorkouts.splice(skippedWorkoutIndex, 1);
       
-      if (remainingWorkouts.length === 0) return updatedWorkouts;
+      // Find the next available date after all currently scheduled workouts
+      let nextAvailableDate = new Date();
+      const scheduledDates = updatedWorkouts
+        .filter(w => w.scheduledDate && !w.completed && !w.skipped)
+        .map(w => w.scheduledDate!)
+        .sort((a, b) => a.getTime() - b.getTime());
       
-      // Start scheduling from the next available date after the skipped workout
-      let currentDate = new Date();
-      
-      // Find the last scheduled date before the skipped workout
-      for (let i = 0; i < skippedWorkoutIndex; i++) {
-        if (updatedWorkouts[i].scheduledDate && !updatedWorkouts[i].skipped) {
-          currentDate = new Date(updatedWorkouts[i].scheduledDate);
-        }
+      if (scheduledDates.length > 0) {
+        nextAvailableDate = addDays(scheduledDates[scheduledDates.length - 1], 1);
       }
       
-      // Move to next day
-      currentDate = addDays(currentDate, 1);
-      
-      // Reschedule all remaining workouts
-      for (const workout of remainingWorkouts) {
-        // Skip rest days
-        while (settings.restDays.includes(currentDate.getDay())) {
-          currentDate = addDays(currentDate, 1);
-        }
-        
-        const workoutIndex = updatedWorkouts.findIndex(w => 
-          w.week === workout.week && w.day === workout.day
-        );
-        
-        if (workoutIndex !== -1) {
-          updatedWorkouts[workoutIndex].scheduledDate = new Date(currentDate);
-          currentDate = addDays(currentDate, 1);
-        }
+      // Skip rest days for the new date
+      while (settings.restDays.includes(nextAvailableDate.getDay())) {
+        nextAvailableDate = addDays(nextAvailableDate, 1);
       }
+      
+      // Update the skipped workout's scheduled date and add it to the end
+      skippedWorkout.scheduledDate = nextAvailableDate;
+      updatedWorkouts.push(skippedWorkout);
       
       return updatedWorkouts;
     });
   };
 
   const updateSettings = (newSettings: ProgramSettings) => {
-    const keySettingsChanged = 
-      newSettings.programWeeks !== settings.programWeeks ||
-      newSettings.trainingDaysPerWeek !== settings.trainingDaysPerWeek ||
-      newSettings.goalDistance !== settings.goalDistance ||
-      newSettings.startingDistance !== settings.startingDistance ||
-      newSettings.walkingSpeed !== settings.walkingSpeed ||
-      newSettings.runningSpeed !== settings.runningSpeed;
-    
     setSettings(newSettings);
-    
-    // Only regenerate workouts if key settings changed
-    if (keySettingsChanged) {
-      const newWorkouts = generateWorkoutPlan();
-      setWorkoutData(newWorkouts);
-    }
   };
 
   const completedWorkouts = workoutData.filter(w => w.completed).length;
