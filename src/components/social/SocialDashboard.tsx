@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Bell, Trophy, Share2, UserPlus, Zap, Heart } from 'lucide-react';
+import { Users, Bell, Trophy, Share2, UserPlus, Target, Users2 } from 'lucide-react';
 import { useSocial } from '@/contexts/SocialContext';
 import AddFriendDialog from './AddFriendDialog';
 import NotificationsList from './NotificationsList';
 import FriendsList from './FriendsList';
+import Leaderboard from './Leaderboard';
+import MilestonesTracker from './MilestonesTracker';
+import TeamPlans from './TeamPlans';
 
 const SocialDashboard: React.FC = () => {
   const { currentUser, notifications, friends } = useSocial();
@@ -78,7 +81,7 @@ const SocialDashboard: React.FC = () => {
 
       {/* Social Features Tabs */}
       <Tabs defaultValue="friends" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 bg-white/70 backdrop-blur-sm">
+        <TabsList className="grid w-full grid-cols-5 bg-white/70 backdrop-blur-sm">
           <TabsTrigger value="friends" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Friends ({friends.length})
@@ -95,6 +98,14 @@ const SocialDashboard: React.FC = () => {
           <TabsTrigger value="leaderboard" className="flex items-center gap-2">
             <Trophy className="w-4 h-4" />
             Leaderboard
+          </TabsTrigger>
+          <TabsTrigger value="milestones" className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Milestones
+          </TabsTrigger>
+          <TabsTrigger value="teams" className="flex items-center gap-2">
+            <Users2 className="w-4 h-4" />
+            Teams
           </TabsTrigger>
         </TabsList>
 
@@ -114,21 +125,15 @@ const SocialDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="leaderboard">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                Friends Leaderboard
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 text-center py-8">
-                Leaderboard feature coming soon! 
-                <br />
-                We'll rank friends by workouts completed and streaks.
-              </p>
-            </CardContent>
-          </Card>
+          <Leaderboard />
+        </TabsContent>
+
+        <TabsContent value="milestones">
+          <MilestonesTracker />
+        </TabsContent>
+
+        <TabsContent value="teams">
+          <TeamPlans />
         </TabsContent>
       </Tabs>
 

@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Share2, Heart, ExternalLink, Calendar, Trophy } from 'lucide-react';
+import { Share2, Heart, ExternalLink, Calendar, Trophy, Users2, Target } from 'lucide-react';
 import { useSocial } from '@/contexts/SocialContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,6 +12,7 @@ const PublicPlanView: React.FC = () => {
   const { shareCode } = useParams<{ shareCode: string }>();
   const [planUser, setPlanUser] = useState<any>(null);
   const [planData, setPlanData] = useState<any>(null);
+  const [userTeams, setUserTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentUser, sendCongrats } = useSocial();
 
@@ -48,32 +48,27 @@ const PublicPlanView: React.FC = () => {
       }
 
       setPlanData(planData);
+
+      // Load user's teams
+      const { data: teamMemberships, error: teamError } = await supabase
+        .from('team_memberships')
+        .select(`
+          teams (
+            id,
+            name,
+            team_code,
+            description
+          )
+        `)
+        .eq('user_id', userData.id);
+
+      if (!teamError && teamMemberships) {
+        setUserTeams(teamMemberships.map(m => m.teams).filter(Boolean));
+      }
     } catch (error) {
       console.error('Error loading public plan:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${planUser.name}'s Running Journey`,
-          text: `Check out ${planUser.name}'s running progress!`,
-          url: window.location.href
-        });
-      } catch (error) {
-        console.log('Sharing cancelled');
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-    }
-  };
-
-  const handleCongratulate = () => {
-    if (currentUser && planUser) {
-      sendCongrats(planUser.id);
     }
   };
 
@@ -110,10 +105,49 @@ const PublicPlanView: React.FC = () => {
     );
   }
 
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${planUser.name}'s Running Journey`,
+          text: `Check out ${planUser.name}'s running progress!`,
+          url: window.location.href
+        });
+      } catch (error) {
+        console.log('Sharing cancelled');
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+    }
+  };
+
+  const handleCongratulate = () => {
+    if (currentUser && planUser) {
+      sendCongrats(planUser.id);
+    }
+  };
+
   // Calculate progress if plan data exists
   const progressPercentage = planData ? 
     Math.round((planData.progress?.filter((p: any) => p.completed).length / planData.progress?.length) * 100) || 0 
     : 0;
+
+  // Generate achievements based on user stats
+  const generateAchievements = () => {
+    const achievements = [];
+    
+    if (planUser.total_workouts >= 1) achievements.push({ title: "First Steps", emoji: "🎯", description: "Completed first workout" });
+    if (planUser.total_workouts >= 5) achievements.push({ title: "Getting Started", emoji: "🏃", description: "Completed 5 workouts" });
+    if (planUser.total_workouts >= 10) achievements.push({ title: "Committed Runner", emoji: "💪", description: "Completed 10 workouts" });
+    if (planUser.current_streak >= 7) achievements.push({ title: "Week Warrior", emoji: "⚡", description: "7-day streak" });
+    if (planUser.current_streak >= 14) achievements.push({ title: "Streak Master", emoji: "🌟", description: "14-day streak" });
+    if (Number(planUser.total_distance) >= 5) achievements.push({ title: "5K Club", emoji: "🥉", description: "5km total distance" });
+    if (Number(planUser.total_distance) >= 10) achievements.push({ title: "10K Hero", emoji: "🥈", description: "10km total distance" });
+    
+    return achievements;
+  };
+
+  const achievements = generateAchievements();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -218,9 +252,9 @@ const PublicPlanView: React.FC = () => {
                   </div>
                   <div className="p-3 bg-purple-50 rounded-lg">
                     <div className="text-lg font-bold text-purple-600">
-                      {planData.milestones?.length || 0}
+                      {achievements.length}
                     </div>
-                    <div className="text-xs text-purple-700">Milestones</div>
+                    <div className="text-xs text-purple-700">Achievements</div>
                   </div>
                 </div>
               </div>
@@ -228,24 +262,53 @@ const PublicPlanView: React.FC = () => {
           </Card>
         )}
 
-        {/* Milestones */}
-        {planData?.milestones && planData.milestones.length > 0 && (
+        {/* Achievements */}
+        {achievements.length > 0 && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                Recent Milestones
+                <Target className="w-5 h-5 text-purple-500" />
+                Achievements ({achievements.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {achievements.map((achievement, index) => (
+                  <div key={index} className="flex items-center space-x-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="text-2xl">{achievement.emoji}</div>
+                    <div>
+                      <p className="font-medium text-purple-800">{achievement.title}</p>
+                      <p className="text-sm text-purple-600">{achievement.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Teams */}
+        {userTeams.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users2 className="w-5 h-5 text-blue-500" />
+                Team Memberships
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {planData.milestones.slice(-5).map((milestone: any, index: number) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg">
-                    <Trophy className="w-5 h-5 text-yellow-500" />
+                {userTeams.map((team) => (
+                  <div key={team.id} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div>
-                      <p className="font-medium">{milestone.title}</p>
-                      <p className="text-sm text-gray-600">{milestone.description}</p>
+                      <h4 className="font-medium text-blue-800">{team.name}</h4>
+                      {team.description && (
+                        <p className="text-sm text-blue-600">{team.description}</p>
+                      )}
                     </div>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                      {team.team_code}
+                    </Badge>
                   </div>
                 ))}
               </div>
