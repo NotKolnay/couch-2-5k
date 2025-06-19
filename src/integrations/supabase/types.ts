@@ -9,13 +9,280 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          friend_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friendships_friend_id_fkey"
+            columns: ["friend_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friendships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reactions: {
+        Row: {
+          created_at: string
+          date: string
+          from_user_id: string | null
+          id: string
+          to_user_id: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          from_user_id?: string | null
+          id?: string
+          to_user_id?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          from_user_id?: string | null
+          id?: string
+          to_user_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactions_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_plans: {
+        Row: {
+          created_at: string
+          id: string
+          milestones: Json | null
+          plan_data: Json
+          progress: Json | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          milestones?: Json | null
+          plan_data: Json
+          progress?: Json | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          milestones?: Json | null
+          plan_data?: Json
+          progress?: Json | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_users: {
+        Row: {
+          avatar_emoji: string | null
+          created_at: string
+          current_streak: number | null
+          id: string
+          last_workout_date: string | null
+          name: string
+          share_code: string
+          total_distance: number | null
+          total_workouts: number | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_emoji?: string | null
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          last_workout_date?: string | null
+          name: string
+          share_code: string
+          total_distance?: number | null
+          total_workouts?: number | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_emoji?: string | null
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          last_workout_date?: string | null
+          name?: string
+          share_code?: string
+          total_distance?: number | null
+          total_workouts?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_memberships: {
+        Row: {
+          id: string
+          joined_at: string
+          team_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          team_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_memberships_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          team_code: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          team_code: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          team_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "social_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_friendship: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: undefined
+      }
+      generate_short_code: {
+        Args: { length?: number }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
