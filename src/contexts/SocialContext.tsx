@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -130,7 +129,17 @@ export const SocialProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         .limit(50);
 
       if (error) throw error;
-      setNotifications(data || []);
+      
+      // Cast the data to match our Notification interface
+      const notifications = (data || []).map(item => ({
+        id: item.id,
+        message: item.message,
+        type: item.type as 'poke' | 'congrats' | 'milestone' | 'friend_added',
+        read: Boolean(item.read),
+        created_at: item.created_at
+      }));
+      
+      setNotifications(notifications);
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
